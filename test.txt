@@ -1,17 +1,9 @@
-/******************************** 
- Data Acquisition Services 
- Master Data Specification Version: 2.7
- Product: Crimson Quality Reporting 
- EPIC
- File: Cases_<<YYYYMMDDHHMMSS>>_<<DataSourceUniqueIdentifier>>.txt 
- ********************************/ 
-
- SELECT DISTINCT   
-    OR_LOG.CASE_ID AS "SurgicalCaseID" -- String, MANDATORY NOT NULL
-,      NVL(PAT_ENC_HSP.HSP_ACCOUNT_ID, '') AS "EncounterID" -- String, MANDATORY NOT NULL
-,      NVL(fac.LOC_ID, '')  AS "FacilityID" -- String, MANDATORY NOT NULL
-,      NVL(fac.LOC_NAME, '') AS "CaseUnit" -- String, MANDATORY NOT NULL
-,      NVL(ACT_OR_ROOM.PROV_NAME, '') AS "ActualOperatingRoom" -- String, MANDATORY NOT NULL
+SELECT DISTINCT   
+OR_LOG.CASE_ID AS "SurgicalCaseID" -- String, MANDATORY NOT NULL
+NVL(PAT_ENC_HSP.HSP_ACCOUNT_ID, '') AS "EncounterID" -- String, MANDATORY NOT NULL
+NVL(fac.LOC_ID, '')  AS "FacilityID" -- String, MANDATORY NOT NULL
+NVL(fac.LOC_NAME, '') AS "CaseUnit" -- String, MANDATORY NOT NULL
+NVL(ACT_OR_ROOM.PROV_NAME, '') AS "ActualOperatingRoom" -- String, MANDATORY NOT NULL
 ,      NVL(TO_CHAR(OR_LOG.SURGERY_DATE, 'YYYY-MM-DD hh24:mi:ss'),'') AS "CaseDate" -- DateTime, MANDATORY NOT NULL
 ,      NVL(TO_CHAR(PAT_START_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'') AS "PatientInRoomActualDatetime" -- DateTime, MANDATORY NOT NULL
 ,      NVL(TO_CHAR(PAT_END_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "PatientOutOfRoomActualDatetime" -- DateTime, MANDATORY NOT NULL
