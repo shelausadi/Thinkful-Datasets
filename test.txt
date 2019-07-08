@@ -1,0 +1,392 @@
+/******************************** 
+ Data Acquisition Services 
+ Master Data Specification Version: 2.7
+ Product: Crimson Quality Reporting 
+ EPIC
+ File: Cases_<<YYYYMMDDHHMMSS>>_<<DataSourceUniqueIdentifier>>.txt 
+ ********************************/ 
+
+ SELECT DISTINCT   
+    OR_LOG.CASE_ID AS "SurgicalCaseID" -- String, MANDATORY NOT NULL
+,      NVL(PAT_ENC_HSP.HSP_ACCOUNT_ID, '') AS "EncounterID" -- String, MANDATORY NOT NULL
+,      NVL(fac.LOC_ID, '')  AS "FacilityID" -- String, MANDATORY NOT NULL
+,      NVL(fac.LOC_NAME, '') AS "CaseUnit" -- String, MANDATORY NOT NULL
+,      NVL(ACT_OR_ROOM.PROV_NAME, '') AS "ActualOperatingRoom" -- String, MANDATORY NOT NULL
+,      NVL(TO_CHAR(OR_LOG.SURGERY_DATE, 'YYYY-MM-DD hh24:mi:ss'),'') AS "CaseDate" -- DateTime, MANDATORY NOT NULL
+,      NVL(TO_CHAR(PAT_START_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'') AS "PatientInRoomActualDatetime" -- DateTime, MANDATORY NOT NULL
+,      NVL(TO_CHAR(PAT_END_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "PatientOutOfRoomActualDatetime" -- DateTime, MANDATORY NOT NULL
+,      NVL(OR_CASE.CANCEL_REASON_C, '') AS "CancellationCode" -- String, RECOMMENDED
+,      NVL(TO_CHAR(OR_CASE.CANCEL_DATE, 'YYYY-MM-DD hh24:mi:ss'),'') AS "CancellationDate" -- DateTime, RECOMMENDED
+,      NVL(CANCEL.NAME, '') AS "CancellationReason" -- String, RECOMMENDED
+-- ,      NVL(TO_CHAR(OR_CASE.TIME_SCHEDULED,'YYYY-MM-DD HH24:MI:SS'),'') AS "PatientInRoomScheduledDatetime" -- DateTime, RECOMMENDED
+-- ,      NVL(TO_CHAR(OR_CASE.TIME_SCHEDULED + (OR_CASE.TOTAL_TIME_NEEDED/1440),'YYYY-MM-DD HH24:MI:SS'),'') AS "PatientOutOfRoomScheduledDat" -- DateTime, RECOMMENDED
+,      NVL(TO_CHAR(OR_CASE_2.PAT_START_TIME,'YYYY-MM-DD HH24:MI:SS'),'') AS "PatientInRoomScheduledDatetime" -- DateTime, RECOMMENDED
+,      NVL(TO_CHAR(OR_CASE_2.PAT_START_TIME + ((OR_CASE.TOTAL_TIME_NEEDED-OR_CASE.SETUP_OFFSET-OR_CASE.CLEANUP_OFFSET)/1440),'YYYY-MM-DD HH24:MI:SS'),'') AS "PatientOutOfRoomScheduledDT" -- DateTime, RECOMMENDED   ----------------------THIS NEEDS TO BE CHANGED TO DATETIME
+,      NVL(PAT_TYPE.NAME, '') AS "PatientType" -- String, RECOMMENDED
+,      CASE WHEN OR_CASE.ADD_ON_CASE_YN = 'Y' THEN 'ADD-ON' ELSE 'SCHEDULED' END AS "ScheduleTypeIndicator" -- String, RECOMMENDED
+,      NVL(SCHED_SVC.NAME, '') AS "Service" -- String, RECOMMENDED
+,      NVL(highest_proc.surgeon_id, '') AS "PrimarySurgeonID" -- String, RECOMMENDED
+,      NVL(MRN.IDENTITY_ID, '') AS "PatientID" -- String, OPTIONAL
+,      NVL(TO_CHAR(OR_CASE.RECORD_CREATE_DATE, 'YYYY-MM-DD HH24:MI:SS'),'') AS "DateCaseAddedtoSchedule" -- DateTime, OPTIONAL
+,      NVL (OR_CASE.CLEANUP_OFFSET,'')  AS "CleanUpTimeScheduled" -- Integer, OPTIONAL
+,      NVL(DELAY.DELAY_TYPE_C, '') AS "DelayCode" -- String, OPTIONAL
+,      NVL(DELAY.NAME, '') AS "DelayReason" -- String, OPTIONAL
+,      NVL(PAT_ENC_HSP.PAT_ENC_CSN_ID, '') AS "AccountIdentifier" -- String, OPTIONAL
+,      COALESCE(TO_CHAR(CUT_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'), TO_CHAR(scope_in.tracking_time_in, 'YYYY-MM-DD HH24:MI:SS'), TO_CHAR(proc_start.tracking_time_in, 'YYYY-MM-DD HH24:MI:SS') ,'')  AS "ActualCutDatetime" -- DateTime, OPTIONAL
+,      COALESCE(TO_CHAR(CLOSE_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'), TO_CHAR(scope_out.tracking_time_in, 'YYYY-MM-DD HH24:MI:SS'),'')  AS "ProcedureCloseActualDatetime" -- DateTime, OPTIONAL
+,      NVL(TO_CHAR(ANESTHESIA_STOP.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "AnesthesiaFinishDatetime" -- DateTime, OPTIONAL
+,      NVL(TO_CHAR(ANESTHESIA_START.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "AnesthesiaStartDatetime" -- DateTime, OPTIONAL
+,      NVL(TO_CHAR(PACU_IN.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "ArrivalPACUDatetime" -- DateTime, OPTIONAL
+,      NVL(SUBSTR(ASA_RATING.NAME,-1,1), '') AS "ASACode" -- String, OPTIONAL
+,      NVL(SUBSTR(ASA_RATING.NAME,-1,1), '') AS "ASARating" -- String, OPTIONAL
+,      NVL(TO_CHAR(PACU_OUT.TRACKING_TIME_IN, 'YYYY-MM-DD HH24:MI:SS'), '') AS "DischargefromPACUDatetime" -- DateTime, OPTIONAL
+,      '' AS "BlockHolder" -- String, OPTIONAL --Epic does not have, manually entered into compass.
+,      NVL(PAT_CLASS.NAME, '') AS "CaseClass" -- String, OPTIONAL
+,      NVL(OR_CASE.TOTAL_TIME_NEEDED-OR_CASE.SETUP_OFFSET-OR_CASE.CLEANUP_OFFSET, '') AS "CaseDurationScheduled" -- Integer, OPTIONAL
+,      NVL(CASE_CLASS.TITLE, '') AS "CaseType" -- String, OPTIONAL
+,      '' AS "PACUDelayReason" -- String, OPTIONAL --not available in epic at this time.
+,      NVL(TO_CHAR(PREOP_START.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "PatientPreOpPrepStartDatetime" -- DateTime, OPTIONAL
+,       NVL(TO_CHAR(PREOP_END.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "PatientPreOpPrepStopDatetime" -- DateTime, OPTIONAL
+--,      ,MAX_PNL_TIME.close_time,120) AS ProcedureCloseActualDatetime -- DateTime, OPTIONAL
+,      '' AS "ProcedureCloseScheduledDT" -- DateTime, OPTIONAL --Not available in epic.  ---------------------- THIS NEEDS TO BE CHANGED TO DATETIME 
+,      NVL(TO_CHAR(RECOVERY_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "ReadyforPACUDischargeDatetime" -- DateTime, OPTIONAL
+,      '' AS "RoomCleanUpFinishedActualDT" -- DateTime, OPTIONAL--Not available in epic. ---------------------- THIS NEEDS TO BE CHANGED TO DATETIME 
+,      '' AS "RoomCleanUpStartActualDatetime" -- DateTime, OPTIONAL--Not available in epic.
+,      NVL(TO_CHAR(RM_READY_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'') AS "RoomReadyActualDatetime" -- DateTime, OPTIONAL
+,      '' AS "RoomSetUpStartActualDatetime" -- DateTime, OPTIONAL
+,      NVL(TO_CHAR(OR_CASE.SURGERY_DATE, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "ScheduledCaseDate" -- DateTime, OPTIONAL
+,      '' AS "ScheduledCutDatetime" -- DateTime, OPTIONAL  --Not available in epic.
+,      NVL(SCHED_OR_ROOM.PROV_NAME, '') AS "ScheduledOperatingRoom" -- String, OPTIONAL
+,      NVL(OR_CASE.SETUP_OFFSET, '') AS "SetUpDurationScheduled" -- Integer, OPTIONAL
+,      NVL(SURG_SPEC.NAME, '') AS "SurgeonSpecialty" -- String, OPTIONAL
+,      NVL(PRIM_SURG_ID.SURG_ID, '') AS "PractitionerID" -- String, OPTIONAL    
+
+
+FROM OR_LOG 
+LEFT JOIN CLARITY_LOC fac --with(nolock) 
+    ON OR_LOG.LOC_ID = fac.LOC_ID
+LEFT JOIN PAT_OR_ADM_LINK 
+   ON OR_LOG.PAT_ID = PAT_OR_ADM_LINK.PAT_ID AND OR_LOG.LOG_ID = PAT_OR_ADM_LINK.OR_CASELOG_ID
+LEFT JOIN PAT_ENC_HSP 
+ON PAT_OR_ADM_LINK.OR_LINK_CSN = PAT_ENC_HSP.PAT_ENC_CSN_ID
+LEFT JOIN HSP_ACCOUNT 
+ON HSP_ACCOUNT.HSP_ACCOUNT_ID = PAT_ENC_HSP.HSP_ACCOUNT_ID
+
+
+LEFT JOIN OR_LOG_ALL_SURG PRIM_SURG_ID 
+    ON OR_LOG.LOG_ID = PRIM_SURG_ID.LOG_ID AND PRIM_SURG_ID.ROLE_C=1 AND PRIM_SURG_ID.PANEL=1
+LEFT JOIN CLARITY_SER PRIM_SURG 
+    ON PRIM_SURG_ID.SURG_ID = PRIM_SURG.PROV_ID
+INNER JOIN OR_CASE 
+    ON OR_LOG.LOG_ID = OR_CASE.OR_CASE_ID
+LEFT JOIN PATIENT_3 ON OR_LOG.PAT_ID = PATIENT_3.PAT_ID	
+LEFT JOIN OR_CASE_2
+    ON OR_CASE_2.CASE_ID=OR_CASE.OR_CASE_ID
+LEFT JOIN ZC_OR_SERVICE SURG_SPEC 
+    ON PRIM_SURG_ID.SERVICE_C = SURG_SPEC.SERVICE_C
+LEFT JOIN ZC_OR_SERVICE SCHED_SVC 
+    ON OR_CASE.SERVICE_C = SCHED_SVC.SERVICE_C
+LEFT JOIN ZC_PAT_CLASS PAT_CLASS 
+    ON OR_LOG.PAT_TYPE_C = PAT_CLASS.ADT_PAT_CLASS_C
+LEFT JOIN ZC_OR_ASA_RATING ASA_RATING 
+    ON OR_LOG.ASA_RATING_C = ASA_RATING.ASA_RATING_C
+LEFT JOIN CLARITY_SER SCHED_OR_ROOM 
+    ON OR_CASE.OR_ID = SCHED_OR_ROOM.PROV_ID
+LEFT JOIN CLARITY_SER ACT_OR_ROOM 
+    ON OR_LOG.ROOM_ID = ACT_OR_ROOM.PROV_ID
+LEFT JOIN OR_CASE_SCHED_HIST SCHED_HIST 
+    ON OR_CASE.OR_CASE_ID = SCHED_HIST.OR_CASE_ID AND SCHED_HIST.LINE = 1
+
+LEFT JOIN ZC_OR_CASE_CLASS CASE_CLASS 
+    ON OR_CASE.CASE_CLASS_C = CASE_CLASS.CASE_CLASS_C
+
+LEFT JOIN ZC_OR_CANCEL_RSN CANCEL 
+    ON OR_CASE.CANCEL_REASON_C = CANCEL.CANCEL_REASON_C
+LEFT JOIN ZC_PAT_CLASS PAT_TYPE 
+    ON PAT_ENC_HSP.ADT_PAT_CLASS_C = PAT_TYPE.ADT_PAT_CLASS_C
+
+--get Delay Reasons
+LEFT JOIN OR_LOG_LN_DELAY 
+    ON OR_LOG.LOG_ID = OR_LOG_LN_DELAY.LOG_ID AND OR_LOG_LN_DELAY.LINE ='1'
+LEFT JOIN OR_LNLG_DELAY 
+    ON OR_LOG_LN_DELAY.DELAY_ID = OR_LNLG_DELAY.RECORD_ID
+LEFT JOIN ZC_OR_DELAY_TYPE DELAY 
+    ON OR_LNLG_DELAY.DELAY_TYPE_C = DELAY.DELAY_TYPE_C
+
+LEFT JOIN ZC_OR_STATUS case_status 
+    on OR_LOG.STATUS_C = case_status.Status_C
+
+--Patient in/out Times
+LEFT JOIN OR_LOG_CASE_TIMES PAT_START_TIME ON OR_LOG.LOG_ID = PAT_START_TIME.LOG_ID AND PAT_START_TIME.TRACKING_EVENT_C = '476'
+LEFT JOIN OR_LOG_CASE_TIMES PAT_END_TIME ON OR_LOG.LOG_ID = PAT_END_TIME.LOG_ID AND PAT_END_TIME.TRACKING_EVENT_C = '1007'
+
+LEFT JOIN OR_LOG_CASE_TIMES CUT_TIME ON OR_LOG.LOG_ID=CUT_TIME.LOG_ID AND CUT_TIME.TRACKING_EVENT_C = '1021'
+LEFT JOIN OR_LOG_CASE_TIMES PROC_START ON OR_LOG.LOG_ID=PROC_START.LOG_ID AND PROC_START.TRACKING_EVENT_C = '280'
+LEFT JOIN OR_LOG_CASE_TIMES CLOSE_TIME ON OR_LOG.LOG_ID=CLOSE_TIME.LOG_ID AND CLOSE_TIME.TRACKING_EVENT_C = '290'
+LEFT JOIN OR_LOG_CASE_TIMES RECOVERY_TIME ON OR_LOG.LOG_ID=RECOVERY_TIME.LOG_ID AND RECOVERY_TIME.TRACKING_EVENT_C = '1012'
+LEFT JOIN OR_LOG_CASE_TIMES RM_READY_TIME ON OR_LOG.LOG_ID=RM_READY_TIME.LOG_ID AND RM_READY_TIME.TRACKING_EVENT_C ='30431'
+--Anesthesia Times - Not tracked
+LEFT OUTER JOIN OR_LOG_CASE_TIMES ANESTHESIA_START ON OR_LOG.LOG_ID = ANESTHESIA_START.LOG_ID AND ANESTHESIA_START.TRACKING_EVENT_C = '2000'
+LEFT OUTER JOIN OR_LOG_CASE_TIMES ANESTHESIA_STOP ON OR_LOG.LOG_ID = ANESTHESIA_STOP.LOG_ID AND ANESTHESIA_STOP.TRACKING_EVENT_C = '2001'
+
+--PACU Times
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES PACU_IN ON OR_LOG.LOG_ID = PACU_IN.LOG_ID
+    AND PACU_IN.TRACKING_TIME_IN = (SELECT MIN(TRACKING_TIME_IN) AS TRACKING_TIME_IN 
+                                    FROM OR_LOG_CASE_TIMES a
+                                    WHERE a.LOG_ID = PACU_IN.LOG_ID
+                                    AND a.TRACKING_EVENT_C IN ('1010' )   
+                                    --AND a.TRACKING_EVENT_C IN ('1010','1014' )   COMMENT IN ONLY IF PHASE 2 NEEDS TO BE ADDED, COMMENT OUT ABOVE LINE
+                                    )   --pacu    
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES PACU_OUT ON OR_LOG.LOG_ID = PACU_OUT.LOG_ID AND PACU_OUT.TRACKING_EVENT_C = '1013'
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES PREOP_START ON OR_LOG.LOG_ID = PREOP_START.LOG_ID AND PREOP_START.TRACKING_EVENT_C = '225' -- in preop
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES PREOP_END ON OR_LOG.LOG_ID = PREOP_END.LOG_ID AND PREOP_END.TRACKING_EVENT_C = '230' -- out of preop
+    
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES scope_in ON OR_LOG.LOG_ID = scope_in.LOG_ID AND scope_in.TRACKING_EVENT_C = '370'
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES scope_out ON OR_LOG.LOG_ID = scope_out.LOG_ID AND scope_out.TRACKING_EVENT_C = '210'
+
+    LEFT JOIN IDENTITY_ID MRN ON HSP_ACCOUNT.PAT_ID = MRN.PAT_ID AND MRN.IDENTITY_TYPE_ID = 9
+
+---Get blockholder 
+LEFT OUTER JOIN OR_CASE_BLOCKS ocb ON OR_CASE.OR_CASE_ID = ocb.OR_CASE_ID
+LEFT OUTER JOIN CLARITY.OR_GRP  og 
+    ON ocb.GROUP_BLOCK_ID = og.GROUP_ID
+LEFT OUTER JOIN ZC_OR_SERVICE ser 
+    ON ocb.SERVICE_BLOCK_C = ser.SERVICE_C
+
+    LEFT JOIN
+        (
+            SELECT
+                olap.log_id
+                , orp.proc_name
+                , zservice.name proc_service
+                , zservice2.name case_service
+                , rec.name recommended_service
+                , surgeon.prov_name surgeon_name
+                , surgeon.prov_id surgeon_id
+                , ser_20.name surgeon_specialty
+                , ROW_NUMBER() OVER (PARTITION BY olap.log_id ORDER BY orp.proc_level_c DESC, olap.all_procs_panel, olap.ordinal) r
+            FROM
+                or_log_all_proc olap
+                INNER JOIN or_proc orp ON orp.or_proc_id=olap.or_proc_id
+                LEFT JOIN or_proc_service proc_svc ON olap.or_proc_id=proc_svc.or_proc_id AND proc_svc.line=1
+                LEFT JOIN zc_or_service zservice ON zservice.service_c=proc_svc.service_c
+                LEFT JOIN or_log_all_surg olas ON olas.log_id=olap.log_id
+                    AND olas.panel=olap.all_procs_panel
+                    AND olas.role_c=1 --primary surgeon
+                LEFT JOIN clarity_ser surgeon ON surgeon.prov_id=olas.surg_id
+                LEFT JOIN zc_ser_rpt_grp_20 ser_20 on surgeon.rpt_grp_twenty_c=ser_20.rpt_grp_twenty_c
+                LEFT JOIN zc_or_service zservice2 ON zservice2.service_c=olas.service_c
+                LEFT JOIN zc_orp_rpt_grp_s3 rec ON rec.orp_rpt_grp_s3_c=orp.rpt_grp3_c
+        ) highest_proc ON highest_proc.log_id=or_log.log_id AND highest_proc.r=1
+    
+WHERE 1=1
+     AND OR_LOG.SURGERY_DATE BETWEEN to_date('02/23/2018','mm/dd/yyyy') and trunc(sysdate)
+     AND ACT_OR_ROOM.PROV_NAME NOT LIKE 'Z%' -- Excluding any OR Room that starts with letter Z, those cases were done outside of the OR
+      AND fac.serv_area_id = 30
+	  AND PATIENT_3.IS_TEST_PAT_YN = 'N'
+    AND fac.LOC_ID IN  
+                (70202,   	--MG ASC
+                 70201	,   --PN ASC 
+                 70200	,   --METHODIST OR
+                 3010025) --Methodist OB OR
+
+
+
+UNION
+
+/******************************** 
+BRINGING IN CANCELLED CASES
+ ********************************/ 
+
+ SELECT DISTINCT   
+    OR_CASE.OR_CASE_ID AS "SurgicalCaseID" -- String, MANDATORY NOT NULL
+,      NVL(PAT_ENC_HSP.HSP_ACCOUNT_ID, '') AS "EncounterID" -- String, MANDATORY NOT NULL
+,      NVL(fac.LOC_ID, '')  AS "FacilityID" -- String, MANDATORY NOT NULL
+,      NVL(fac.LOC_NAME, '') AS "CaseUnit" -- String, MANDATORY NOT NULL
+,      NVL(ACT_OR_ROOM.PROV_NAME, '') AS "ActualOperatingRoom" -- String, MANDATORY NOT NULL
+,      NVL(TO_CHAR(OR_CASE.SURGERY_DATE, 'YYYY-MM-DD hh24:mi:ss'),'') AS "CaseDate" -- DateTime, MANDATORY NOT NULL
+,      NVL(TO_CHAR(PAT_START_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'') AS "PatientInRoomActualDatetime" -- DateTime, MANDATORY NOT NULL
+,      NVL(TO_CHAR(PAT_END_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "PatientOutOfRoomActualDatetime" -- DateTime, MANDATORY NOT NULL
+,      NVL(OR_CASE.CANCEL_REASON_C, '') AS "CancellationCode" -- String, RECOMMENDED
+,      NVL(TO_CHAR(OR_CASE.CANCEL_DATE, 'YYYY-MM-DD hh24:mi:ss'),'') AS "CancellationDate" -- DateTime, RECOMMENDED
+,      NVL(CANCEL.NAME, '') AS "CancellationReason" -- String, RECOMMENDED
+-- ,      NVL(TO_CHAR(OR_CASE.TIME_SCHEDULED,'YYYY-MM-DD HH24:MI:SS'),'') AS "PatientInRoomScheduledDatetime" -- DateTime, RECOMMENDED
+-- ,      NVL(TO_CHAR(OR_CASE.TIME_SCHEDULED + (OR_CASE.TOTAL_TIME_NEEDED/1440),'YYYY-MM-DD HH24:MI:SS'),'') AS "PatientOutOfRoomScheduledDat" -- DateTime, RECOMMENDED
+,      NVL(TO_CHAR(OR_CASE.SURGERY_DATE,'YYYY-MM-DD HH24:MI:SS'),'') AS "PatientInRoomScheduledDatetime" -- DateTime, RECOMMENDED
+,      NVL(TO_CHAR(OR_CASE_2.PAT_START_TIME + ((OR_CASE.TOTAL_TIME_NEEDED-OR_CASE.SETUP_OFFSET-OR_CASE.CLEANUP_OFFSET)/1440),'YYYY-MM-DD HH24:MI:SS'),'') AS "PatientOutOfRoomScheduledDT" -- DateTime, RECOMMENDED   ----------------------THIS NEEDS TO BE CHANGED TO DATETIME
+,      NVL(PAT_TYPE.NAME, '') AS "PatientType" -- String, RECOMMENDED
+,      CASE WHEN OR_CASE.ADD_ON_CASE_YN = 'Y' THEN 'ADD-ON' ELSE 'SCHEDULED' END AS "ScheduleTypeIndicator" -- String, RECOMMENDED
+,      NVL(SCHED_SVC.NAME, '') AS "Service" -- String, RECOMMENDED
+,      NVL(highest_proc.surgeon_id, '') AS "PrimarySurgeonID" -- String, RECOMMENDED
+,      NVL(MRN.IDENTITY_ID, '') AS "PatientID" -- String, OPTIONAL
+,      NVL(TO_CHAR(OR_CASE.RECORD_CREATE_DATE, 'YYYY-MM-DD HH24:MI:SS'),'') AS "DateCaseAddedtoSchedule" -- DateTime, OPTIONAL
+,      NVL (OR_CASE.CLEANUP_OFFSET,'')  AS "CleanUpTimeScheduled" -- Integer, OPTIONAL
+,      NVL(DELAY.DELAY_TYPE_C, '') AS "DelayCode" -- String, OPTIONAL
+,      NVL(DELAY.NAME, '') AS "DelayReason" -- String, OPTIONAL
+,      NVL(PAT_ENC_HSP.PAT_ENC_CSN_ID, '') AS "AccountIdentifier" -- String, OPTIONAL
+,      COALESCE(TO_CHAR(CUT_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'), TO_CHAR(scope_in.tracking_time_in, 'YYYY-MM-DD HH24:MI:SS'), TO_CHAR(proc_start.tracking_time_in, 'YYYY-MM-DD HH24:MI:SS') ,'')  AS "ActualCutDatetime" -- DateTime, OPTIONAL
+,      COALESCE(TO_CHAR(CLOSE_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'), TO_CHAR(scope_out.tracking_time_in, 'YYYY-MM-DD HH24:MI:SS'),'')  AS "ProcedureCloseActualDatetime" -- DateTime, OPTIONAL
+,      NVL(TO_CHAR(ANESTHESIA_STOP.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "AnesthesiaFinishDatetime" -- DateTime, OPTIONAL
+,      NVL(TO_CHAR(ANESTHESIA_START.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "AnesthesiaStartDatetime" -- DateTime, OPTIONAL
+,      NVL(TO_CHAR(PACU_IN.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "ArrivalPACUDatetime" -- DateTime, OPTIONAL
+,      NVL(SUBSTR(ASA_RATING.NAME,-1,1), '') AS "ASACode" -- String, OPTIONAL
+,      NVL(SUBSTR(ASA_RATING.NAME,-1,1), '') AS "ASARating" -- String, OPTIONAL
+,      NVL(TO_CHAR(PACU_OUT.TRACKING_TIME_IN, 'YYYY-MM-DD HH24:MI:SS'), '') AS "DischargefromPACUDatetime" -- DateTime, OPTIONAL
+,      '' AS "BlockHolder" -- String, OPTIONAL --Epic does not have, manually entered into compass.
+,      NVL(PAT_CLASS.NAME, '') AS "CaseClass" -- String, OPTIONAL
+,      NVL(OR_CASE.TOTAL_TIME_NEEDED-OR_CASE.SETUP_OFFSET-OR_CASE.CLEANUP_OFFSET, '') AS "CaseDurationScheduled" -- Integer, OPTIONAL
+,      NVL(CASE_CLASS.TITLE, '') AS "CaseType" -- String, OPTIONAL
+,      '' AS "PACUDelayReason" -- String, OPTIONAL --not available in epic at this time.
+,      NVL(TO_CHAR(PREOP_START.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "PatientPreOpPrepStartDatetime" -- DateTime, OPTIONAL
+,       NVL(TO_CHAR(PREOP_END.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "PatientPreOpPrepStopDatetime" -- DateTime, OPTIONAL
+--,      ,MAX_PNL_TIME.close_time,120) AS ProcedureCloseActualDatetime -- DateTime, OPTIONAL
+,      '' AS "ProcedureCloseScheduledDT" -- DateTime, OPTIONAL --Not available in epic.  ---------------------- THIS NEEDS TO BE CHANGED TO DATETIME 
+,      NVL(TO_CHAR(RECOVERY_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "ReadyforPACUDischargeDatetime" -- DateTime, OPTIONAL
+,      '' AS "RoomCleanUpFinishedActualDT" -- DateTime, OPTIONAL--Not available in epic. ---------------------- THIS NEEDS TO BE CHANGED TO DATETIME 
+,      '' AS "RoomCleanUpStartActualDatetime" -- DateTime, OPTIONAL--Not available in epic.
+,      NVL(TO_CHAR(RM_READY_TIME.TRACKING_TIME_IN, 'YYYY-MM-DD hh24:mi:ss'),'') AS "RoomReadyActualDatetime" -- DateTime, OPTIONAL
+,      '' AS "RoomSetUpStartActualDatetime" -- DateTime, OPTIONAL
+,      NVL(TO_CHAR(OR_CASE.SURGERY_DATE, 'YYYY-MM-DD hh24:mi:ss'),'')  AS "ScheduledCaseDate" -- DateTime, OPTIONAL
+,      '' AS "ScheduledCutDatetime" -- DateTime, OPTIONAL  --Not available in epic.
+,      NVL(SCHED_OR_ROOM.PROV_NAME, '') AS "ScheduledOperatingRoom" -- String, OPTIONAL
+,      NVL(OR_CASE.SETUP_OFFSET, '') AS "SetUpDurationScheduled" -- Integer, OPTIONAL
+,      NVL(SURG_SPEC.NAME, '') AS "SurgeonSpecialty" -- String, OPTIONAL
+,      NVL(PRIM_SURG_ID.SURG_ID, '') AS "PractitionerID" -- String, OPTIONAL    
+
+
+FROM OR_CASE
+LEFT JOIN OR_LOG 
+ ON OR_LOG.CASE_ID = OR_CASE.OR_CASE_ID
+LEFT JOIN CLARITY_LOC fac --with(nolock) 
+    ON OR_CASE.LOC_ID = fac.LOC_ID
+LEFT JOIN PAT_OR_ADM_LINK 
+   ON OR_LOG.PAT_ID = PAT_OR_ADM_LINK.PAT_ID AND OR_CASE.OR_CASE_ID = PAT_OR_ADM_LINK.OR_CASELOG_ID
+LEFT JOIN PAT_ENC_HSP 
+ON PAT_OR_ADM_LINK.OR_LINK_CSN = PAT_ENC_HSP.PAT_ENC_CSN_ID
+LEFT JOIN HSP_ACCOUNT 
+ON HSP_ACCOUNT.HSP_ACCOUNT_ID = PAT_ENC_HSP.HSP_ACCOUNT_ID
+LEFT JOIN PATIENT_3 ON OR_CASE.PAT_ID = PATIENT_3.PAT_ID	
+
+LEFT JOIN OR_LOG_ALL_SURG PRIM_SURG_ID 
+    ON OR_LOG.LOG_ID = PRIM_SURG_ID.LOG_ID AND PRIM_SURG_ID.ROLE_C=1 AND PRIM_SURG_ID.PANEL=1
+LEFT JOIN CLARITY_SER PRIM_SURG 
+    ON PRIM_SURG_ID.SURG_ID = PRIM_SURG.PROV_ID
+--LEFT JOIN OR_CASE 
+    --ON OR_LOG.LOG_ID = OR_CASE.OR_CASE_ID
+LEFT JOIN OR_CASE_2
+    ON OR_CASE_2.CASE_ID=OR_CASE.OR_CASE_ID
+LEFT JOIN ZC_OR_SERVICE SURG_SPEC 
+    ON PRIM_SURG_ID.SERVICE_C = SURG_SPEC.SERVICE_C
+LEFT JOIN ZC_OR_SERVICE SCHED_SVC 
+    ON OR_CASE.SERVICE_C = SCHED_SVC.SERVICE_C
+LEFT JOIN ZC_PAT_CLASS PAT_CLASS 
+    ON OR_LOG.PAT_TYPE_C = PAT_CLASS.ADT_PAT_CLASS_C
+LEFT JOIN ZC_OR_ASA_RATING ASA_RATING 
+    ON OR_LOG.ASA_RATING_C = ASA_RATING.ASA_RATING_C
+LEFT JOIN CLARITY_SER SCHED_OR_ROOM 
+    ON OR_CASE.OR_ID = SCHED_OR_ROOM.PROV_ID
+LEFT JOIN CLARITY_SER ACT_OR_ROOM 
+    ON OR_LOG.ROOM_ID = ACT_OR_ROOM.PROV_ID
+LEFT JOIN OR_CASE_SCHED_HIST SCHED_HIST 
+    ON OR_CASE.OR_CASE_ID = SCHED_HIST.OR_CASE_ID AND SCHED_HIST.LINE = 1
+
+LEFT JOIN ZC_OR_CASE_CLASS CASE_CLASS 
+    ON OR_CASE.CASE_CLASS_C = CASE_CLASS.CASE_CLASS_C
+
+LEFT JOIN ZC_OR_CANCEL_RSN CANCEL 
+    ON OR_CASE.CANCEL_REASON_C = CANCEL.CANCEL_REASON_C
+LEFT JOIN ZC_PAT_CLASS PAT_TYPE 
+    ON PAT_ENC_HSP.ADT_PAT_CLASS_C = PAT_TYPE.ADT_PAT_CLASS_C
+
+--get Delay Reasons
+LEFT JOIN OR_LOG_LN_DELAY 
+    ON OR_LOG.LOG_ID = OR_LOG_LN_DELAY.LOG_ID AND OR_LOG_LN_DELAY.LINE ='1'
+LEFT JOIN OR_LNLG_DELAY 
+    ON OR_LOG_LN_DELAY.DELAY_ID = OR_LNLG_DELAY.RECORD_ID
+LEFT JOIN ZC_OR_DELAY_TYPE DELAY 
+    ON OR_LNLG_DELAY.DELAY_TYPE_C = DELAY.DELAY_TYPE_C
+
+LEFT JOIN ZC_OR_STATUS case_status 
+    on OR_LOG.STATUS_C = case_status.Status_C
+
+--Patient in/out Times
+LEFT JOIN OR_LOG_CASE_TIMES PAT_START_TIME ON OR_LOG.LOG_ID = PAT_START_TIME.LOG_ID AND PAT_START_TIME.TRACKING_EVENT_C = '476'
+LEFT JOIN OR_LOG_CASE_TIMES PAT_END_TIME ON OR_LOG.LOG_ID = PAT_END_TIME.LOG_ID AND PAT_END_TIME.TRACKING_EVENT_C = '1007'
+
+LEFT JOIN OR_LOG_CASE_TIMES CUT_TIME ON OR_LOG.LOG_ID=CUT_TIME.LOG_ID AND CUT_TIME.TRACKING_EVENT_C = '1021'
+LEFT JOIN OR_LOG_CASE_TIMES PROC_START ON OR_LOG.LOG_ID=PROC_START.LOG_ID AND PROC_START.TRACKING_EVENT_C = '280'
+LEFT JOIN OR_LOG_CASE_TIMES CLOSE_TIME ON OR_LOG.LOG_ID=CLOSE_TIME.LOG_ID AND CLOSE_TIME.TRACKING_EVENT_C = '290'
+LEFT JOIN OR_LOG_CASE_TIMES RECOVERY_TIME ON OR_LOG.LOG_ID=RECOVERY_TIME.LOG_ID AND RECOVERY_TIME.TRACKING_EVENT_C = '1012'
+LEFT JOIN OR_LOG_CASE_TIMES RM_READY_TIME ON OR_LOG.LOG_ID=RM_READY_TIME.LOG_ID AND RM_READY_TIME.TRACKING_EVENT_C ='30431'
+--Anesthesia Times - Not tracked
+LEFT OUTER JOIN OR_LOG_CASE_TIMES ANESTHESIA_START ON OR_LOG.LOG_ID = ANESTHESIA_START.LOG_ID AND ANESTHESIA_START.TRACKING_EVENT_C = '2000'
+LEFT OUTER JOIN OR_LOG_CASE_TIMES ANESTHESIA_STOP ON OR_LOG.LOG_ID = ANESTHESIA_STOP.LOG_ID AND ANESTHESIA_STOP.TRACKING_EVENT_C = '2001'
+
+--PACU Times
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES PACU_IN ON OR_LOG.LOG_ID = PACU_IN.LOG_ID
+    AND PACU_IN.TRACKING_TIME_IN = (SELECT MIN(TRACKING_TIME_IN) AS TRACKING_TIME_IN 
+                                    FROM OR_LOG_CASE_TIMES a
+                                    WHERE a.LOG_ID = PACU_IN.LOG_ID
+                                    AND a.TRACKING_EVENT_C IN ('1010' )   
+                                    --AND a.TRACKING_EVENT_C IN ('1010','1014' )   COMMENT IN ONLY IF PHASE 2 NEEDS TO BE ADDED, COMMENT OUT ABOVE LINE
+                                    )   --pacu    
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES PACU_OUT ON OR_LOG.LOG_ID = PACU_OUT.LOG_ID AND PACU_OUT.TRACKING_EVENT_C = '1013'
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES PREOP_START ON OR_LOG.LOG_ID = PREOP_START.LOG_ID AND PREOP_START.TRACKING_EVENT_C = '225' -- in preop
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES PREOP_END ON OR_LOG.LOG_ID = PREOP_END.LOG_ID AND PREOP_END.TRACKING_EVENT_C = '230' -- out of preop
+    
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES scope_in ON OR_LOG.LOG_ID = scope_in.LOG_ID AND scope_in.TRACKING_EVENT_C = '370'
+    LEFT OUTER JOIN OR_LOG_CASE_TIMES scope_out ON OR_LOG.LOG_ID = scope_out.LOG_ID AND scope_out.TRACKING_EVENT_C = '210'
+
+    LEFT JOIN IDENTITY_ID MRN ON HSP_ACCOUNT.PAT_ID = MRN.PAT_ID AND MRN.IDENTITY_TYPE_ID = 9
+
+---Get blockholder 
+LEFT OUTER JOIN OR_CASE_BLOCKS ocb ON OR_CASE.OR_CASE_ID = ocb.OR_CASE_ID
+LEFT OUTER JOIN CLARITY.OR_GRP  og 
+    ON ocb.GROUP_BLOCK_ID = og.GROUP_ID
+LEFT OUTER JOIN ZC_OR_SERVICE ser 
+    ON ocb.SERVICE_BLOCK_C = ser.SERVICE_C
+
+    LEFT JOIN
+        (
+            SELECT
+                olap.log_id
+                , orp.proc_name
+                , zservice.name proc_service
+                , zservice2.name case_service
+                , rec.name recommended_service
+                , surgeon.prov_name surgeon_name
+                , surgeon.prov_id surgeon_id
+                , ser_20.name surgeon_specialty
+                , ROW_NUMBER() OVER (PARTITION BY olap.log_id ORDER BY orp.proc_level_c DESC, olap.all_procs_panel, olap.ordinal) r
+            FROM
+                or_log_all_proc olap
+                INNER JOIN or_proc orp ON orp.or_proc_id=olap.or_proc_id
+                LEFT JOIN or_proc_service proc_svc ON olap.or_proc_id=proc_svc.or_proc_id AND proc_svc.line=1
+                LEFT JOIN zc_or_service zservice ON zservice.service_c=proc_svc.service_c
+                LEFT JOIN or_log_all_surg olas ON olas.log_id=olap.log_id
+                    AND olas.panel=olap.all_procs_panel
+                    AND olas.role_c=1 --primary surgeon
+                LEFT JOIN clarity_ser surgeon ON surgeon.prov_id=olas.surg_id
+                LEFT JOIN zc_ser_rpt_grp_20 ser_20 on surgeon.rpt_grp_twenty_c=ser_20.rpt_grp_twenty_c
+                LEFT JOIN zc_or_service zservice2 ON zservice2.service_c=olas.service_c
+                LEFT JOIN zc_orp_rpt_grp_s3 rec ON rec.orp_rpt_grp_s3_c=orp.rpt_grp3_c
+        ) highest_proc ON highest_proc.log_id=or_log.log_id AND highest_proc.r=1
+    
+WHERE 1=1
+
+     AND OR_CASE.SURGERY_DATE BETWEEN to_date('02/23/2018','mm/dd/yyyy') and trunc(sysdate)
+     AND OR_CASE.CANCEL_REASON_C IS NOT NULL
+     AND PATIENT_3.IS_TEST_PAT_YN = 'N'
+      AND fac.serv_area_id = 30
+   AND fac.LOC_ID IN  
+                (70202,   	--MG ASC
+                 70201	,   --PN ASC 
+                 70200	,   --METHODIST OR
+                 3010025) --Methodist OB OR 
+                 
+                 
+
+
+
+
+
